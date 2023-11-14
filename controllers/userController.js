@@ -9,7 +9,7 @@ const getAllUsers = async (request, reply) => {
 };
 
 const createUser = async (request, reply) => {
-  const { username, password } = request.body;
+  const { username, password, role } = request.body;
 
   // Check if user already exists
   const existingUser = await prisma.userConfig.findUnique({
@@ -25,7 +25,7 @@ const createUser = async (request, reply) => {
   const users = await prisma.userConfig.findMany();
 
   // If there are no users, make this user an admin
-  const role = users.length === 0 ? 'admin' : 'user';
+  const designatedRole = users.length === 0 ? 'admin' : role;
 
   // Hash password
   const salt = await bcrypt.genSalt(10);
@@ -35,7 +35,7 @@ const createUser = async (request, reply) => {
     data: {
       username,
       password: hashedPassword,
-      role,
+      role: designatedRole,
     },
   });
 

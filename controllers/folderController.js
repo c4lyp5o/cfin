@@ -47,20 +47,46 @@ const saveSharedFolder = async (request, reply) => {
   try {
     const files = await fs.promises.readdir(folderPath);
 
-    const videoFiles = files
-      .filter((file) => path.extname(file) === '.mp4')
-      .map((file) => {
-        return {
-          fileName: file,
-          filePath: path.join(folderPath, file),
-          fileSize: fs.statSync(path.join(folderPath, file)).size,
-          fileType: 'video',
-          fileExtension: path.extname(file),
-        };
-      });
+    const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif'];
+    const musicExtensions = ['.mp3', '.wav', '.aac'];
+    const videoExtensions = ['.mp4', '.avi', '.mov', '.flv'];
 
-    if (videoFiles.length === 0) {
-      reply.code(400).send({ error: 'No video files found' });
+    const videoFiles = files
+      .filter((file) => videoExtensions.includes(path.extname(file)))
+      .map((file) => ({
+        fileName: file,
+        filePath: path.join(folderPath, file),
+        fileSize: fs.statSync(path.join(folderPath, file)).size,
+        fileType: 'video',
+        fileExtension: path.extname(file),
+      }));
+
+    const imageFiles = files
+      .filter((file) => imageExtensions.includes(path.extname(file)))
+      .map((file) => ({
+        fileName: file,
+        filePath: path.join(folderPath, file),
+        fileSize: fs.statSync(path.join(folderPath, file)).size,
+        fileType: 'image',
+        fileExtension: path.extname(file),
+      }));
+
+    const musicFiles = files
+      .filter((file) => musicExtensions.includes(path.extname(file)))
+      .map((file) => ({
+        fileName: file,
+        filePath: path.join(folderPath, file),
+        fileSize: fs.statSync(path.join(folderPath, file)).size,
+        fileType: 'music',
+        fileExtension: path.extname(file),
+      }));
+
+    if (
+      videoFiles.length === 0 &&
+      imageFiles.length === 0 &&
+      musicFiles.length === 0
+    ) {
+      reply.code(400).send({ error: 'No files found' });
       return;
     }
 
@@ -72,6 +98,20 @@ const saveSharedFolder = async (request, reply) => {
         folderSize: videoFiles.reduce((acc, file) => acc + file.fileSize, 0),
         files: {
           create: videoFiles.map((file) => ({
+            fileName: file.fileName,
+            filePath: file.filePath,
+            fileSize: file.fileSize,
+            fileType: file.fileType,
+            fileExtension: file.fileExtension,
+          })),
+          create: imageFiles.map((file) => ({
+            fileName: file.fileName,
+            filePath: file.filePath,
+            fileSize: file.fileSize,
+            fileType: file.fileType,
+            fileExtension: file.fileExtension,
+          })),
+          create: musicFiles.map((file) => ({
             fileName: file.fileName,
             filePath: file.filePath,
             fileSize: file.fileSize,
@@ -97,9 +137,16 @@ const updateSharedFolder = async (request, reply) => {
 };
 
 const deleteSharedFolder = async (request, reply) => {
+  // delete all files in SharedFiles table
+  await prisma.SharedFiles.deleteMany({
+    where: { folderId: Number(request.params.id) },
+  });
+
+  // delete folder in SharedFolders table
   const folder = await prisma.SharedFolders.delete({
     where: { id: Number(request.params.id) },
   });
+
   reply.send(folder);
 };
 
