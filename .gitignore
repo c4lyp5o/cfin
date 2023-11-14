@@ -2,5 +2,6 @@ node_modules
 # Keep environment variables out of version control
 .env
 
-/database
+/database/cfin.db
+/database/cfin.db-journal
 /prisma/migrations
