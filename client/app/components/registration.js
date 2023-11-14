@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function RegistrationPage() {
+export default function RegistrationPage({ showRegistration }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -15,22 +15,38 @@ export default function RegistrationPage() {
       return;
     }
 
-    const response = await fetch('/api/v1/users/create', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ username, password }),
-    });
+    let url;
 
-    if (response.ok) {
-      setDone(true);
-      setTimeout(() => {
-        window.location.reload();
-      }, 3000);
-    } else {
-      const data = await response.json();
-      setErrorMessage(data.message);
+    switch (showRegistration) {
+      case true:
+        url = '/api/v1/initial/genesis';
+        break;
+      default:
+        url = '/api/v1/users/create';
+        break;
+    }
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (response.ok) {
+        setDone(true);
+        setTimeout(() => {
+          window.location.reload();
+        }, 3000);
+      } else {
+        const data = await response.json();
+        setErrorMessage(data.message);
+      }
+    } catch (error) {
+      console.error('An error occurred:', error);
+      setErrorMessage('An error occurred. Please try again.');
     }
   };
 

@@ -9,26 +9,41 @@ export default function withAuth(Component) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-      const token = localStorage.getItem('cfin');
-      const user = JSON.parse(token);
+      const validateUser = async () => {
+        let token = localStorage.getItem('cfin');
+        let user = null;
 
-      if (!user) {
-        router.replace('/');
-      } else {
-        fetch('/api/v1/users/validate', {
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-          },
-        })
-          .then((res) => res.json())
-          .then((data) => {
+        if (token) {
+          try {
+            user = JSON.parse(token);
+          } catch (err) {
+            console.error('Error parsing token:', err);
+          }
+        }
+
+        if (!user) {
+          router.replace('/');
+        } else {
+          try {
+            const res = await fetch('/api/v1/users/validate', {
+              headers: {
+                Authorization: `Bearer ${user.token}`,
+              },
+            });
+            const data = await res.json();
+
             if (data.valid) {
               setLoading(false);
             } else {
               router.replace('/');
             }
-          });
-      }
+          } catch (error) {
+            console.error('An error occurred:', error);
+          }
+        }
+      };
+
+      validateUser();
     }, [router]);
 
     if (loading) return null;

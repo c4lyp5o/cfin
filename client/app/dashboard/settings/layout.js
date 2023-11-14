@@ -3,14 +3,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 export default function RootLayout({ children }) {
-  // get the current path
   const path = usePathname();
 
   const tabs = [
     {
       name: 'App Settings',
       href: '/dashboard/settings/appsettings',
-      current: false,
+      current: true,
     },
     {
       name: 'User Management',
@@ -20,14 +19,10 @@ export default function RootLayout({ children }) {
     {
       name: 'Shared Folders',
       href: '/dashboard/settings/sharedfolders',
-      current: false,
+      current: true,
     },
-    { name: 'Billing', href: '#', current: false },
+    { name: 'Sign Out', href: '/dashboard/settings/signout', current: true },
   ];
-
-  function classNames(...classes) {
-    return classes.filter(Boolean).join(' ');
-  }
 
   return (
     <div>
@@ -35,7 +30,6 @@ export default function RootLayout({ children }) {
         <label htmlFor='tabs' className='sr-only'>
           Select a tab
         </label>
-        {/* Use an "onChange" listener to redirect the user to the selected tab URL. */}
         <select
           id='tabs'
           name='tabs'
@@ -51,19 +45,18 @@ export default function RootLayout({ children }) {
         <div className='border-b border-gray-200'>
           <nav className='-mb-px flex' aria-label='Tabs'>
             {tabs.map((tab) => (
-              <a
+              <Link
                 key={tab.name}
                 href={tab.href}
-                className={classNames(
-                  tab.current
+                className={`${
+                  path === tab.href
                     ? 'border-indigo-500 text-indigo-600'
-                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700',
-                  'w-1/4 border-b-2 py-4 px-1 text-center text-sm font-medium'
-                )}
-                aria-current={tab.current ? 'page' : undefined}
+                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                } w-1/4 border-b-2 py-4 px-1 text-center text-sm font-medium`}
+                aria-current={path === tab.href ? 'page' : undefined}
               >
                 {tab.name}
-              </a>
+              </Link>
             ))}
           </nav>
         </div>

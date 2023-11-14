@@ -12,21 +12,26 @@ export default function LoginPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    const response = await fetch('/api/v1/users/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ username, password }),
-    });
+    try {
+      const response = await fetch('/api/v1/initial/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
 
-    if (response.ok) {
       const data = await response.json();
-      localStorage.setItem('cfin', JSON.stringify(data));
-      router.push('/dashboard');
-    } else {
-      const data = await response.json();
-      setErrorMessage(data.message);
+
+      if (response.ok) {
+        localStorage.setItem('cfin', JSON.stringify(data));
+        router.push('/dashboard');
+      } else {
+        setErrorMessage(data.message);
+      }
+    } catch (error) {
+      console.error('An error occurred:', error);
+      setErrorMessage('An error occurred. Please try again.');
     }
   };
 

@@ -9,15 +9,29 @@ const Images = () => {
   const [files, setFiles] = useState([]);
 
   useEffect(() => {
-    axios.get('/api/v1/files').then((response) => {
-      console.log(response.data);
-      setFiles(response.data);
-    });
+    const fetchImages = async () => {
+      try {
+        const token = localStorage.getItem('cfin');
+        const user = JSON.parse(token);
+
+        const response = await axios.get('/api/v1/files/images', {
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+          },
+        });
+
+        setFiles(response.data);
+      } catch (error) {
+        console.error('An error occurred:', error);
+      }
+    };
+
+    fetchImages();
   }, []);
 
   return (
     <div className='p-4'>
-      <h1 className='text-2xl mb-4'>Shared Files</h1>
+      <h1 className='text-2xl mb-4'>Shared Images</h1>
       <div className='grid grid-cols-3 gap-4'>
         {files.length > 0 ? (
           files.map((file) => (
