@@ -1,3 +1,4 @@
+import dotenv from 'dotenv';
 import fastify from 'fastify';
 // import staticServe from 'fastify-static';
 
@@ -10,6 +11,8 @@ import folderRoutes from './routes/folderRoutes.js';
 import fileRoutes from './routes/fileRoutes.js';
 
 import prisma from './database/client.js';
+
+dotenv.config();
 
 // Create fastify instance
 const server = fastify({ logger: false });
