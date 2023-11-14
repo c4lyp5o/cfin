@@ -5,7 +5,7 @@ import Link from 'next/link';
 
 import withAuth from '@/app/hoc/withAuth';
 
-const Videos = () => {
+const Images = () => {
   const [files, setFiles] = useState([]);
 
   useEffect(() => {
@@ -38,4 +38,4 @@ const Videos = () => {
   );
 };
 
-export default withAuth(Videos);
+export default withAuth(Images);
