@@ -5,8 +5,8 @@
   "description": "C-Fin Media Server",
   "main": "server.js",
   "scripts": {
-    "install-server": "npm run install",
-    "install-client": "cd client && npm run install",
+    "install-server": "npm install",
+    "install-client": "cd client && npm install",
     "dev-server": "nodemon server.js",
     "dev-client": "cd client && npm run dev",
     "dev": "concurrently \"npm run dev-server\" \"npm run dev-client\"",
