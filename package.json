@@ -2,25 +2,36 @@
   "name": "cfin",
   "version": "1.0.0",
   "type": "module",
-  "description": "cfin",
+  "description": "C-Fin Media Server",
   "main": "server.js",
   "scripts": {
-    "start": "nodemon server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "install-server": "npm run install",
+    "install-client": "cd client && npm run install",
+    "dev-server": "nodemon server.js",
+    "dev-client": "cd client && npm run dev",
+    "dev": "concurrently \"npm run dev-server\" \"npm run dev-client\"",
+    "build-client": "cd client && npm run build",
+    "build": "npm run build-client",
+    "start": "node server.js"
   },
   "keywords": [],
-  "author": "",
+  "author": "c4lyp5o",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/c4lyp5o/cfin.git"
+  },
   "dependencies": {
     "@prisma/client": "^5.5.2",
     "bcrypt": "^5.1.1",
-    "concurrently": "^8.2.2",
+    "dotenv": "^16.3.1",
     "fastify": "^4.24.3",
     "jsonwebtoken": "^9.0.2",
-    "nodemon": "^3.0.1",
     "sqlite3": "^5.1.6"
   },
   "devDependencies": {
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.0.1",
     "prisma": "^5.5.2"
   }
 }
