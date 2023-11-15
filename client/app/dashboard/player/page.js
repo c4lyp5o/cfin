@@ -35,23 +35,17 @@ const Player = () => {
 
         const data = await response.json();
         setMediaInfo(data);
+
+        const videoElement = videoRef.current;
+        const signedUrl = `/api/v1/files/stream?id=${search}&key=${data.signedKey}`;
+        videoElement.src = signedUrl;
+
+        videoElement.addEventListener('loadedmetadata', () => {
+          videoElement.currentTime = 0;
+        });
       } catch (error) {
         console.error('An error occurred:', error);
       }
-
-      const videoElement = videoRef.current;
-
-      fetch(`/api/v1/files/stream?id=${search}`, {
-        headers: {
-          Authorization: `Bearer ${user.token}`,
-        },
-      })
-        .then((response) => response.blob())
-        .then((blob) => {
-          const url = URL.createObjectURL(blob);
-          videoElement.src = url;
-        })
-        .catch((error) => console.error('An error occurred:', error));
     };
 
     fetchMediaInfo();

@@ -14,10 +14,11 @@ export default function Home() {
   useEffect(() => {
     const fetchInitialData = async () => {
       const token = localStorage.getItem('cfin');
-      const user = JSON.parse(token);
 
-      if (user) {
+      if (token) {
         try {
+          const user = JSON.parse(token);
+
           const res = await fetch(`${API_URL}/users/validate`, {
             method: 'GET',
             headers: {

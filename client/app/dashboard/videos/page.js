@@ -8,6 +8,19 @@ import withAuth from '@/app/hoc/withAuth';
 const Videos = () => {
   const [files, setFiles] = useState([]);
 
+  const convertBytes = (bytes) => {
+    bytes = Number(bytes);
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    if (bytes === 0) {
+      return 'n/a';
+    }
+    const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)), 10);
+    if (i === 0) {
+      return `${bytes} ${sizes[i]})`;
+    }
+    return `${(bytes / 1024 ** i).toFixed(1)} ${sizes[i]}`;
+  };
+
   useEffect(() => {
     const fetchVideos = async () => {
       try {
@@ -41,7 +54,7 @@ const Videos = () => {
             >
               <h2 className='text-lg mb-2'>{file.fileName}</h2>
               <p>{file.filePath}</p>
-              <p>{file.fileSize} bytes</p>
+              <p>{convertBytes(file.fileSize)}</p>
               <p>Last accessed: {file.lastAccessed}</p>
               <p>Total watch time: {file.totalWatchTime} seconds</p>
               <Link href={`/dashboard/player?id=${file.id}`}>

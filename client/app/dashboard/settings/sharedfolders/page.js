@@ -250,6 +250,7 @@ function SharedFolders() {
   };
 
   const convertBytes = (bytes) => {
+    bytes = Number(bytes);
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
     if (bytes === 0) {
       return 'n/a';
