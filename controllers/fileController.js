@@ -1,5 +1,7 @@
 import fs from 'fs';
+import crypto from 'crypto';
 import path from 'path';
+import mime from 'mime-types';
 import prisma from '../database/client.js';
 
 const getAllFiles = async (request, reply) => {
@@ -7,29 +9,30 @@ const getAllFiles = async (request, reply) => {
 
   let files;
 
-  try {
-    switch (fileType) {
-      case 'images':
-        files = await prisma.sharedFiles.findMany({
-          where: { fileType: 'image' },
-        });
-        break;
-      case 'videos':
-        files = await prisma.sharedFiles.findMany({
-          where: { fileType: 'video' },
-        });
-        break;
-      default:
-        files = await prisma.sharedFiles.findMany({
-          where: { fileType: 'music' },
-        });
-        break;
-    }
-
-    reply.send(files);
-  } catch (err) {
-    reply.code(500).send({ error: err.message });
+  switch (fileType) {
+    case 'images':
+      files = await prisma.sharedFiles.findMany({
+        where: { fileType: 'image' },
+      });
+      break;
+    case 'videos':
+      files = await prisma.sharedFiles.findMany({
+        where: { fileType: 'video' },
+      });
+      break;
+    default:
+      files = await prisma.sharedFiles.findMany({
+        where: { fileType: 'music' },
+      });
+      break;
   }
+
+  const filesWithSizeAsString = files.map((file) => ({
+    ...file,
+    fileSize: file.fileSize.toString(),
+  }));
+
+  reply.send(filesWithSizeAsString);
 };
 
 const getFileInfo = async (request, reply) => {
@@ -40,9 +43,15 @@ const getFileInfo = async (request, reply) => {
     return;
   }
 
-  const file = await prisma.sharedFiles.findUnique({
-    where: { id: Number(id) },
-  });
+  let file;
+  try {
+    file = await prisma.sharedFiles.findUnique({
+      where: { id: Number(id) },
+    });
+  } catch (error) {
+    reply.code(500).send({ error: 'Error retrieving file info' });
+    return;
+  }
 
   if (!file) {
     reply.code(404).send({ error: 'File not found' });
@@ -52,17 +61,39 @@ const getFileInfo = async (request, reply) => {
   const filePath = file.filePath;
   const absoluteFilePath = path.resolve(filePath);
 
-  if (!fs.existsSync(absoluteFilePath)) {
+  try {
+    await fs.promises.access(absoluteFilePath);
+  } catch (error) {
     reply.code(404).send({ error: 'File not found on the server' });
     return;
   }
 
-  const fileStat = fs.statSync(absoluteFilePath);
+  let fileStat;
+  try {
+    fileStat = await fs.promises.stat(absoluteFilePath);
+  } catch (error) {
+    reply.code(500).send({ error: 'Error retrieving file stats' });
+    return;
+  }
+
   const fileName = file.fileName;
   const fileExtension = file.fileExtension;
   const fileSize = fileStat.size;
   const lastAccessed = fileStat.atime;
   const totalWatchTime = file.totalWatchTime;
+
+  let signedKey;
+  try {
+    const randomString = crypto.randomBytes(32).toString('hex');
+    signedKey = await prisma.signedKeys.create({
+      data: {
+        key: randomString,
+      },
+    });
+  } catch (error) {
+    reply.code(500).send({ error: 'Error creating signed key' });
+    return;
+  }
 
   reply.send({
     fileName,
@@ -70,72 +101,133 @@ const getFileInfo = async (request, reply) => {
     fileExtension,
     lastAccessed,
     totalWatchTime,
+    signedKey: signedKey.key,
   });
 };
 
 const streamFile = async (request, reply) => {
+  const { id, key } = request.query;
+
+  if (!id || !key) {
+    reply.code(403);
+    return reply.send('Forbidden');
+  }
+
+  let signedKey;
   try {
-    const id = request.query.id;
+    signedKey = await prisma.signedKeys.findUnique({
+      where: { key: key },
+    });
+  } catch (error) {
+    reply.code(500).send({ error: 'Error retrieving signed key' });
+    return;
+  }
 
-    if (!id) {
-      reply.code(400).send({ error: 'Missing ID parameter' });
-      return;
+  if (!signedKey) {
+    reply.code(403);
+    return reply.send('Forbidden');
+  } else {
+    if (process.env.BUILD_ENV === 'dev') {
+      console.log('[DEV] Deleting key after 1 minute');
+      setTimeout(async () => {
+        await prisma.signedKeys.delete({
+          where: { key: key },
+        });
+      }, 5000);
+    } else {
+      await prisma.signedKeys.delete({
+        where: { key: key },
+      });
     }
+  }
 
-    const file = await prisma.sharedFiles.findUnique({
+  let file;
+  try {
+    file = await prisma.sharedFiles.findUnique({
       where: { id: Number(id) },
     });
-
-    if (!file) {
-      reply.code(404).send({ error: 'File not found' });
-      return;
-    }
-
-    const filePath = file.filePath;
-    const absoluteFilePath = path.resolve(filePath);
-
-    if (!fs.existsSync(absoluteFilePath)) {
-      reply.code(404).send({ error: 'File not found on the server' });
-      return;
-    }
-
-    const fileStat = fs.statSync(absoluteFilePath);
-    const fileExtension = file.fileExtension;
-    const fileSize = fileStat.size;
-
-    switch (fileExtension) {
-      case '.mp4':
-      case '.avi':
-      case '.mov':
-      case '.flv':
-        reply.headers({
-          'Content-Length': fileSize,
-          'Content-Type': `video/${fileExtension.substring(1)}`,
-        });
-        break;
-      case '.png':
-      case '.jpg':
-      case '.jpeg':
-      case '.gif':
-        reply.headers({
-          'Content-Length': fileSize,
-          'Content-Type': `image/${fileExtension.substring(1)}`,
-        });
-        break;
-      default:
-        reply.headers({
-          'Content-Length': fileSize,
-          'Content-Type': `audio/${fileExtension.substring(1)}`,
-        });
-        break;
-    }
-
-    const stream = fs.createReadStream(absoluteFilePath);
-    return reply.send(stream);
-  } catch (err) {
-    console.error(err);
-    reply.code(500).send({ error: 'Failed to read file' });
+  } catch (error) {
+    reply.code(500).send({ error: 'Error retrieving file info' });
+    return;
   }
+
+  if (!file) {
+    reply.code(404).send({ error: 'File not found' });
+    return;
+  }
+
+  const filePath = file.filePath;
+  const absoluteFilePath = path.resolve(filePath);
+
+  try {
+    await fs.promises.access(absoluteFilePath);
+  } catch (error) {
+    reply.code(404).send({ error: 'File not found on the server' });
+    return;
+  }
+
+  let fileStat;
+  try {
+    fileStat = await fs.promises.stat(absoluteFilePath);
+  } catch (error) {
+    reply.code(500).send({ error: 'Error retrieving file stats' });
+    return;
+  }
+
+  const fileSize = fileStat.size;
+  const contentType =
+    mime.contentType(file.fileExtension) || 'application/octet-stream';
+
+  const range = request.headers.range;
+
+  if (range) {
+    const parts = range.replace(/bytes=/, '').split('-');
+    const start = parseInt(parts[0], 10);
+    const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+    const chunksize = end - start + 1;
+    const file = fs.createReadStream(filePath, { start, end });
+    const head = {
+      'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+      'Accept-Ranges': 'bytes',
+      'Content-Length': chunksize,
+      'Content-Type': contentType,
+    };
+
+    reply.code(206);
+    reply.headers(head);
+    return reply.send(file);
+  } else {
+    const head = {
+      'Content-Length': fileSize,
+      'Content-Type': contentType,
+    };
+    reply.code(200);
+    reply.headers(head);
+    return reply.send(fs.createReadStream(filePath));
+  }
+};
+
+const revokeStreamFileKey = async (request, reply) => {
+  const { key } = request.query;
+
+  if (!key) {
+    reply.code(400).send({ error: 'Missing key parameter' });
+    return;
+  }
+
+  try {
+    await prisma.signedKeys.delete({
+      where: { key: key },
+    });
+  } catch (error) {
+    reply.code(500).send({ error: 'Error revoking key' });
+    return;
+  }
+
+  console.log(`Key ${key} revoked successfully`);
+
+  reply.send({ message: 'Key revoked successfully' });
 };
 
 const createFile = async (request, reply) => {
@@ -164,6 +256,7 @@ export {
   getAllFiles,
   getFileInfo,
   streamFile,
+  revokeStreamFileKey,
   createFile,
   updateFile,
   deleteFile,

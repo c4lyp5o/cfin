@@ -25,7 +25,17 @@ const getAllSharedFolders = async (request, reply) => {
   const folders = await prisma.SharedFolders.findMany({
     include: { files: true },
   });
-  reply.send(folders);
+
+  const folderWithSizeAsString = folders.map((f) => ({
+    ...f,
+    folderSize: f.folderSize.toString(),
+    files: f.files.map((file) => ({
+      ...file,
+      fileSize: file.fileSize.toString(),
+    })),
+  }));
+
+  reply.send(folderWithSizeAsString);
 };
 
 const saveSharedFolder = async (request, reply) => {
@@ -56,7 +66,7 @@ const saveSharedFolder = async (request, reply) => {
       .map((file) => ({
         fileName: file,
         filePath: path.join(folderPath, file),
-        fileSize: fs.statSync(path.join(folderPath, file)).size,
+        fileSize: fs.statSync(path.join(folderPath, file)).size.toString(),
         fileType: 'video',
         fileExtension: path.extname(file),
       }));
@@ -66,7 +76,7 @@ const saveSharedFolder = async (request, reply) => {
       .map((file) => ({
         fileName: file,
         filePath: path.join(folderPath, file),
-        fileSize: fs.statSync(path.join(folderPath, file)).size,
+        fileSize: fs.statSync(path.join(folderPath, file)).size.toString(),
         fileType: 'image',
         fileExtension: path.extname(file),
       }));
@@ -76,7 +86,7 @@ const saveSharedFolder = async (request, reply) => {
       .map((file) => ({
         fileName: file,
         filePath: path.join(folderPath, file),
-        fileSize: fs.statSync(path.join(folderPath, file)).size,
+        fileSize: fs.statSync(path.join(folderPath, file)).size.toString(),
         fileType: 'music',
         fileExtension: path.extname(file),
       }));
@@ -90,34 +100,50 @@ const saveSharedFolder = async (request, reply) => {
       return;
     }
 
+    const folderSize = (
+      videoFiles
+        .map((file) => BigInt(file.fileSize))
+        .reduce((acc, size) => acc + size, BigInt(0)) +
+      imageFiles
+        .map((file) => BigInt(file.fileSize))
+        .reduce((acc, size) => acc + size, BigInt(0)) +
+      musicFiles
+        .map((file) => BigInt(file.fileSize))
+        .reduce((acc, size) => acc + size, BigInt(0))
+    ).toString();
+
+    console.log(folderSize);
+
     const folder = await prisma.SharedFolders.create({
       data: {
         userId: decoded.id,
         folderPath: folderPath,
         folderName: path.basename(folderPath),
-        folderSize: videoFiles.reduce((acc, file) => acc + file.fileSize, 0),
+        folderSize: folderSize,
         files: {
-          create: videoFiles.map((file) => ({
-            fileName: file.fileName,
-            filePath: file.filePath,
-            fileSize: file.fileSize,
-            fileType: file.fileType,
-            fileExtension: file.fileExtension,
-          })),
-          create: imageFiles.map((file) => ({
-            fileName: file.fileName,
-            filePath: file.filePath,
-            fileSize: file.fileSize,
-            fileType: file.fileType,
-            fileExtension: file.fileExtension,
-          })),
-          create: musicFiles.map((file) => ({
-            fileName: file.fileName,
-            filePath: file.filePath,
-            fileSize: file.fileSize,
-            fileType: file.fileType,
-            fileExtension: file.fileExtension,
-          })),
+          create: [
+            ...videoFiles.map((file) => ({
+              fileName: file.fileName,
+              filePath: file.filePath,
+              fileSize: file.fileSize.toString(),
+              fileType: file.fileType,
+              fileExtension: file.fileExtension,
+            })),
+            ...imageFiles.map((file) => ({
+              fileName: file.fileName,
+              filePath: file.filePath,
+              fileSize: file.fileSize.toString(),
+              fileType: file.fileType,
+              fileExtension: file.fileExtension,
+            })),
+            ...musicFiles.map((file) => ({
+              fileName: file.fileName,
+              filePath: file.filePath,
+              fileSize: file.fileSize.toString(),
+              fileType: file.fileType,
+              fileExtension: file.fileExtension,
+            })),
+          ],
         },
       },
     });
