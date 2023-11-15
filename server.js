@@ -1,5 +1,7 @@
 import dotenv from 'dotenv';
 import fastify from 'fastify';
+import cors from '@fastify/cors';
+import helmet from '@fastify/helmet';
 
 // Import routes
 import initialRoutes from './routes/initialRoutes.js';
@@ -11,6 +13,10 @@ dotenv.config();
 
 // Create fastify instance
 const server = fastify({ logger: false });
+
+// Register plugins
+server.register(cors);
+server.register(helmet, { global: true });
 
 // Register routes with '/api/' prefix
 server.register(initialRoutes, { prefix: '/api/v1' });
