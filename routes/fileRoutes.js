@@ -2,6 +2,7 @@ import {
   getAllFiles,
   getFileInfo,
   streamFile,
+  revokeStreamFileKey,
   createFile,
   updateFile,
   deleteFile,
@@ -17,7 +18,10 @@ export default function (fastify, opts, done) {
   fastify.get('/files/info', { preHandler: checkToken }, getFileInfo);
 
   // Stream video files
-  fastify.get('/files/stream', { preHandler: checkToken }, streamFile);
+  fastify.get('/files/stream', streamFile);
+
+  // Revoke stream file key
+  fastify.get('/files/revoke', { preHandler: checkToken }, revokeStreamFileKey);
 
   // Create a file
   fastify.post('/files', { preHandler: checkToken }, createFile);
