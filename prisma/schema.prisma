@@ -23,7 +23,7 @@ model SharedFolders {
   folderName     String
   folderPath     String      @unique
   description    String?
-  folderSize     Int         @default(0)
+  folderSize     BigInt         @default(0)
   public         Boolean     @default(true)
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
@@ -39,7 +39,7 @@ model SharedFiles {
   folderId       Int
   fileName       String
   filePath       String
-  fileSize       Int  
+  fileSize       BigInt  
   fileType       String?
   fileExtension  String?
   createdAt      DateTime    @default(now())
@@ -49,4 +49,11 @@ model SharedFiles {
   totalWatchTime Int         @default(0)
 
   folder         SharedFolders @relation(fields: [folderId], references: [id])
+}
+
+model SignedKeys {
+  id             Int          @id @default(autoincrement())
+  key            String       @unique
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 }
