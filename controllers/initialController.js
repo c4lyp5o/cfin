@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { v4 as uuidv4 } from 'uuid';
 
 import prisma from '../database/client.js';
 
@@ -33,8 +34,6 @@ const initialRegistration = async (request, reply) => {
 const loginUser = async (request, reply) => {
   const { username, password } = request.body;
 
-  console.log(process.env.JWT_SECRET);
-
   try {
     // Check if user exists
     const existingUser = await prisma.userConfig.findUnique({
@@ -54,10 +53,14 @@ const loginUser = async (request, reply) => {
       return;
     }
 
-    // Create and sign a JWT token
-    const token = jwt.sign({ id: existingUser.id }, process.env.JWT_SECRET);
+    // Create a session
+    request.session.authenticated = true;
+    request.session.user = {
+      ...existingUser,
+      uuid: uuidv4(),
+    };
 
-    reply.send({ token, username: existingUser.username });
+    reply.send({ message: 'Logged in successfully' });
   } catch (err) {
     reply.status(500).send({ message: err.message });
   }

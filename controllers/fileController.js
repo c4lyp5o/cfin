@@ -106,39 +106,11 @@ const getFileInfo = async (request, reply) => {
 };
 
 const streamFile = async (request, reply) => {
-  const { id, key } = request.query;
+  const { id } = request.query;
 
-  if (!id || !key) {
+  if (!id) {
     reply.code(403);
     return reply.send('Forbidden');
-  }
-
-  let signedKey;
-  try {
-    signedKey = await prisma.signedKeys.findUnique({
-      where: { key: key },
-    });
-  } catch (error) {
-    reply.code(500).send({ error: 'Error retrieving signed key' });
-    return;
-  }
-
-  if (!signedKey) {
-    reply.code(403);
-    return reply.send('Forbidden');
-  } else {
-    if (process.env.BUILD_ENV === 'dev') {
-      console.log('[DEV] Deleting key after 1 minute');
-      setTimeout(async () => {
-        await prisma.signedKeys.delete({
-          where: { key: key },
-        });
-      }, 5000);
-    } else {
-      await prisma.signedKeys.delete({
-        where: { key: key },
-      });
-    }
   }
 
   let file;
@@ -208,28 +180,6 @@ const streamFile = async (request, reply) => {
   }
 };
 
-const revokeStreamFileKey = async (request, reply) => {
-  const { key } = request.query;
-
-  if (!key) {
-    reply.code(400).send({ error: 'Missing key parameter' });
-    return;
-  }
-
-  try {
-    await prisma.signedKeys.delete({
-      where: { key: key },
-    });
-  } catch (error) {
-    reply.code(500).send({ error: 'Error revoking key' });
-    return;
-  }
-
-  console.log(`Key ${key} revoked successfully`);
-
-  reply.send({ message: 'Key revoked successfully' });
-};
-
 const createFile = async (request, reply) => {
   const file = await prisma.sharedFiles.create({
     data: request.body,
@@ -256,7 +206,6 @@ export {
   getAllFiles,
   getFileInfo,
   streamFile,
-  revokeStreamFileKey,
   createFile,
   updateFile,
   deleteFile,

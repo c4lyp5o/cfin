@@ -112,8 +112,6 @@ const saveSharedFolder = async (request, reply) => {
         .reduce((acc, size) => acc + size, BigInt(0))
     ).toString();
 
-    console.log(folderSize);
-
     const folder = await prisma.SharedFolders.create({
       data: {
         userId: decoded.id,
