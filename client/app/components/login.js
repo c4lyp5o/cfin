@@ -24,7 +24,6 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem('cfin', JSON.stringify(data));
         router.push('/dashboard');
       } else {
         setErrorMessage(data.message);

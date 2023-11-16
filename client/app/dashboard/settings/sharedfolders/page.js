@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import { Dialog, Transition } from '@headlessui/react';
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
-import withAuth from '@/app/hoc/withAuth';
+import afterLogin from '@/app/hoc/afterLogin';
 import DirectoryTree from '@/app/components/directorytree';
 
 function AddFolderModal({ closeModal }) {
@@ -17,19 +17,7 @@ function AddFolderModal({ closeModal }) {
     const sendData = async () => {
       try {
         const data = { folder };
-        const token = localStorage.getItem('cfin');
-
-        if (!token) {
-          toast.error('No token found');
-          return;
-        }
-
-        const user = JSON.parse(token);
-        const config = {
-          headers: { Authorization: `Bearer ${user.token}` },
-        };
-
-        await axios.post('/api/v1/folders/save', data, config);
+        await axios.post('/api/v1/folders/save', data);
         toast.success('Folder added successfully');
       } catch (error) {
         console.error('An error occurred:', error);
@@ -264,37 +252,13 @@ function SharedFolders() {
 
   useEffect(() => {
     const fetchSharedFolders = async () => {
-      const token = localStorage.getItem('cfin');
-
-      if (!token) {
-        console.error('No token found');
-        return;
-      }
-
-      let user;
       try {
-        user = JSON.parse(token);
-      } catch (err) {
-        console.error('Error parsing token:', err);
-        return;
-      }
-
-      try {
-        const response = await fetch('/api/v1/folders/shared', {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error('Error fetching shared folders');
-        }
-
+        const response = await fetch('/api/v1/folders/shared');
         const data = await response.json();
         setAllFolders(data);
       } catch (error) {
         console.error('An error occurred:', error);
+        toast.error('An error occurred. Please try again.');
       }
     };
 
@@ -359,4 +323,4 @@ function SharedFolders() {
   );
 }
 
-export default withAuth(SharedFolders);
+export default afterLogin(SharedFolders);

@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-import withAuth from '@/app/hoc/withAuth';
+import afterLogin from '@/app/hoc/afterLogin';
 
 const Player = () => {
   const searchParams = useSearchParams();
@@ -19,25 +19,19 @@ const Player = () => {
         return;
       }
 
-      const token = localStorage.getItem('cfin');
-      const user = JSON.parse(token);
-
       try {
-        const response = await fetch(`/api/v1/files/info?id=${search}`, {
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-          },
-        });
+        const response = await fetch(`/api/v1/files/info?id=${search}`);
 
         if (!response.ok) {
           throw new Error('Error fetching media info');
         }
 
         const data = await response.json();
+
         setMediaInfo(data);
 
         const videoElement = videoRef.current;
-        const signedUrl = `/api/v1/files/stream?id=${search}&key=${data.signedKey}`;
+        const signedUrl = `/api/v1/files/stream?id=${search}`;
         videoElement.src = signedUrl;
 
         videoElement.addEventListener('loadedmetadata', () => {
@@ -53,7 +47,15 @@ const Player = () => {
 
   return (
     <div className='flex flex-col items-center'>
-      <video ref={videoRef} controls className='w-full mb-4' />
+      <video
+        ref={videoRef}
+        controls
+        className='w-full mb-4'
+        title={mediaInfo.fileName}
+        preload='metadata'
+        autoPlay
+        loop
+      />
       <div className='text-center'>
         <h2 className='text-xl mb-2'>{mediaInfo.fileName}</h2>
         <p className='mb-2'>Size: {mediaInfo.fileSize} bytes</p>
@@ -64,4 +66,4 @@ const Player = () => {
   );
 };
 
-export default withAuth(Player);
+export default afterLogin(Player);

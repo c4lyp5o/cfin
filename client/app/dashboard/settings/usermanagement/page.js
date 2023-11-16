@@ -1,11 +1,10 @@
 'use client';
 import { Fragment, useEffect, useState, useRef } from 'react';
-import axios from 'axios';
 import { toast } from 'react-toastify';
 import { Dialog, Transition } from '@headlessui/react';
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
-import withAuth from '@/app/hoc/withAuth';
+import afterLogin from '@/app/hoc/afterLogin';
 
 function AddUserModal({ closeModal }) {
   const [open, setOpen] = useState(true);
@@ -24,25 +23,23 @@ function AddUserModal({ closeModal }) {
 
     const sendData = async () => {
       try {
-        const token = localStorage.getItem('cfin');
-
-        if (!token) {
-          toast.error('No token found');
-          return;
+        const response = await fetch('/api/v1/users/create', {
+          method: 'POST',
+          body: JSON.stringify(createdUser),
+        });
+        if (response.ok) {
+          toast.success(`User ${createdUser.username} created`);
+        } else {
+          const errorData = await response.json();
+          console.error('An error occurred:', errorData);
+          toast.error(
+            errorData.message || `Error creating user ${createdUser.username}`
+          );
         }
-
-        const user = JSON.parse(token);
-        const config = {
-          headers: { Authorization: `Bearer ${user.token}` },
-        };
-
-        await axios.post('/api/v1/users/create', createdUser, config);
-        toast.success(`User ${createdUser.username} created`);
       } catch (error) {
         console.error('An error occurred:', error);
         toast.error(
-          error.response.data.message ||
-            `Error creating user ${createdUser.username}`
+          error.message || `Error creating user ${createdUser.username}`
         );
       } finally {
         closeModal();
@@ -170,19 +167,9 @@ function DeleteUserModal({ closeModal, selectedUser }) {
     event.preventDefault();
     const deleteData = async () => {
       try {
-        const token = localStorage.getItem('cfin');
-
-        if (!token) {
-          toast.error('No token found');
-          return;
-        }
-
-        const user = JSON.parse(token);
-        const config = {
-          headers: { Authorization: `Bearer ${user.token}` },
-        };
-
-        await axios.delete(`/api/v1/users/${selectedUser.id}`, config);
+        await fetch(`/api/v1/users/${selectedUser.id}`, {
+          method: 'DELETE',
+        });
         toast.success(`User ${selectedUser.username} deleted`);
       } catch (error) {
         console.error('An error occurred:', error);
@@ -196,6 +183,7 @@ function DeleteUserModal({ closeModal, selectedUser }) {
     };
     deleteData();
   };
+
   return (
     <Transition.Root show={open} as={Fragment}>
       <Dialog
@@ -304,37 +292,13 @@ function UserManagement() {
 
   useEffect(() => {
     const fetchUsers = async () => {
-      const token = localStorage.getItem('cfin');
-
-      if (!token) {
-        console.error('No token found');
-        return;
-      }
-
-      let user;
       try {
-        user = JSON.parse(token);
-      } catch (err) {
-        console.error('Error parsing token:', err);
-        return;
-      }
-
-      try {
-        const response = await fetch('/api/v1/users', {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error('Error fetching users');
-        }
-
+        const response = await fetch('/api/v1/users');
         const data = await response.json();
         setUsers(data);
       } catch (error) {
         console.error('An error occurred:', error);
+        toast.error('Error fetching users');
       }
     };
 
@@ -397,4 +361,4 @@ function UserManagement() {
   );
 }
 
-export default withAuth(UserManagement);
+export default afterLogin(UserManagement);

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import Loading from '../components/loading';
+import LightLoading from '../components/loading';
 
-export default function withAuth(Component) {
+export default function afterLogin(Component) {
   return function AuthenticatedComponent(props) {
     const router = useRouter();
 
@@ -29,7 +29,7 @@ export default function withAuth(Component) {
     }, [router]);
 
     if (loading) {
-      return <Loading />;
+      return <LightLoading />;
     }
 
     return <Component {...props} />;

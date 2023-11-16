@@ -1,9 +1,9 @@
 // pages/settings.js
 'use client';
-import withAuth from '../../hoc/withAuth';
+import afterLogin from '@/app/hoc/afterLogin';
 
 function Settings() {
   return <div>Hello im settings</div>;
 }
 
-export default withAuth(Settings);
+export default afterLogin(Settings);

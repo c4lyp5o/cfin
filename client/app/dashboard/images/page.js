@@ -1,9 +1,9 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import Link from 'next/link';
+import { toast } from 'react-toastify';
 
-import withAuth from '@/app/hoc/withAuth';
+import afterLogin from '@/app/hoc/afterLogin';
 
 const Images = () => {
   const [files, setFiles] = useState([]);
@@ -11,18 +11,13 @@ const Images = () => {
   useEffect(() => {
     const fetchImages = async () => {
       try {
-        const token = localStorage.getItem('cfin');
-        const user = JSON.parse(token);
+        const response = await fetch('/api/v1/files/images');
+        const data = await response.json();
 
-        const response = await axios.get('/api/v1/files/images', {
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-          },
-        });
-
-        setFiles(response.data);
+        setFiles(data);
       } catch (error) {
         console.error('An error occurred:', error);
+        toast.error('An error occurred. Please try again.');
       }
     };
 
@@ -52,4 +47,4 @@ const Images = () => {
   );
 };
 
-export default withAuth(Images);
+export default afterLogin(Images);

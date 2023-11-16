@@ -1,8 +1,8 @@
 'use client';
-import withAuth from '../../../hoc/withAuth';
+import afterLogin from '@/app/hoc/afterLogin';
 
 function AppSettings() {
   return <>Hello im app settings</>;
 }
 
-export default withAuth(AppSettings);
+export default afterLogin(AppSettings);

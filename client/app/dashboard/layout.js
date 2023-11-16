@@ -39,14 +39,6 @@ export default function RootLayout({ children }) {
     },
   ];
 
-  // get user info
-  //   const { username } = JSON.parse(localStorage.getItem('cfin'));
-  let username;
-  if (typeof window !== 'undefined') {
-    const data = JSON.parse(window.localStorage.getItem('cfin'));
-    username = data ? data.username : null;
-  }
-
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (

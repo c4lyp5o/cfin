@@ -2,14 +2,14 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 
-import withAuth from '@/app/hoc/withAuth';
+import afterLogin from '@/app/hoc/afterLogin';
 
 const SignOutPage = () => {
   const router = useRouter();
 
   const handleSignOut = () => {
     try {
-      localStorage.clear();
+      fetch('/api/v1/signout');
       router.replace('/');
     } catch (error) {
       console.error('An error occurred:', error);
@@ -29,4 +29,4 @@ const SignOutPage = () => {
   );
 };
 
-export default withAuth(SignOutPage);
+export default afterLogin(SignOutPage);

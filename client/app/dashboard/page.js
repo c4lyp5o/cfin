@@ -24,7 +24,7 @@ import {
   MagnifyingGlassIcon,
 } from '@heroicons/react/20/solid';
 
-import withAuth from '../hoc/withAuth';
+import withAuth from '@/app/hoc/withAuth';
 import Link from 'next/link';
 
 function Dashboard() {

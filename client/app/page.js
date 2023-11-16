@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { toast } from 'react-toastify';
 
 import RegistrationPage from './components/registration';
 import LoginPage from './components/login';
@@ -8,40 +8,19 @@ import LoginPage from './components/login';
 const API_URL = '/api/v1';
 
 export default function Home() {
-  const router = useRouter();
   const [showRegistration, setShowRegistration] = useState(null);
 
   useEffect(() => {
     const fetchInitialData = async () => {
-      const token = localStorage.getItem('cfin');
+      try {
+        const res = await fetch(`${API_URL}/initial`);
 
-      if (token) {
-        try {
-          const user = JSON.parse(token);
+        const data = await res.json();
 
-          const res = await fetch(`${API_URL}/users/validate`, {
-            method: 'GET',
-            headers: {
-              Authorization: `Bearer ${user.token}`,
-            },
-          });
-          const data = await res.json();
-
-          if (data.valid) {
-            router.push('/dashboard');
-          }
-        } catch (error) {
-          console.error('An error occurred:', error);
-        }
-      } else {
-        try {
-          const res = await fetch(`${API_URL}/initial`);
-          const data = await res.json();
-
-          setShowRegistration(data.showRegistration);
-        } catch (error) {
-          console.error('An error occurred:', error);
-        }
+        setShowRegistration(data.showRegistration);
+      } catch (error) {
+        console.error('An error occurred:', error);
+        toast.error('An error occurred. Please try again.');
       }
     };
 
