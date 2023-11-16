@@ -6,31 +6,30 @@ import {
   deleteSharedFolder,
 } from '../controllers/folderController.js';
 
-import checkToken from '../middleware/checkToken.js';
-
 export default function (fastify, opts, done) {
+  fastify.addHook('preHandler', (request, reply, done) => {
+    if (!request.session.authenticated) {
+      reply.status(401).send({ error: 'Unauthorized' });
+      return;
+    } else {
+      done();
+    }
+  });
+
   // Get all folders. this is for adding folders
-  fastify.get('/folders/read', { prehandler: checkToken }, getAllFolders);
+  fastify.get('/folders/read', getAllFolders);
 
   // Get all shared folders
-  fastify.get(
-    '/folders/shared',
-    { prehandler: checkToken },
-    getAllSharedFolders
-  );
+  fastify.get('/folders/shared', getAllSharedFolders);
 
   // Save folders for sharing
-  fastify.post('/folders/save', { prehandler: checkToken }, saveSharedFolder);
+  fastify.post('/folders/save', saveSharedFolder);
 
   // Update a folder
-  fastify.put('/folders/:id', { prehandler: checkToken }, updateSharedFolder);
+  fastify.put('/folders/:id', updateSharedFolder);
 
   // Delete a folder
-  fastify.delete(
-    '/folders/:id',
-    { prehandler: checkToken },
-    deleteSharedFolder
-  );
+  fastify.delete('/folders/:id', deleteSharedFolder);
 
   done();
 }

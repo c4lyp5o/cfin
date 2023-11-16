@@ -1,32 +1,31 @@
 import {
   getAllUsers,
   createUser,
-  loginUser,
-  validateUser,
   updateUser,
   deleteUser,
 } from '../controllers/userController.js';
 
-import checkToken from '../middleware/checkToken.js';
-
 export default function (fastify, opts, done) {
+  fastify.addHook('preHandler', (request, reply, done) => {
+    if (!request.session.authenticated) {
+      reply.status(401).send({ error: 'Unauthorized' });
+      return;
+    } else {
+      done();
+    }
+  });
+
   // Get all users
-  fastify.get('/users', { preHandler: checkToken }, getAllUsers);
+  fastify.get('/users', getAllUsers);
 
   // Create a user
-  fastify.post('/users/create', { preHandler: checkToken }, createUser);
-
-  // login user
-  fastify.post('/users/login', loginUser);
-
-  // validate token
-  fastify.get('/users/validate', { preHandler: checkToken }, validateUser);
+  fastify.post('/users/create', createUser);
 
   // Update a user
-  fastify.put('/users/:id', { preHandler: checkToken }, updateUser);
+  fastify.put('/users/:id', updateUser);
 
   // Delete a user
-  fastify.delete('/users/:id', { preHandler: checkToken }, deleteUser);
+  fastify.delete('/users/:id', deleteUser);
 
   done();
 }
