@@ -14,7 +14,7 @@ function AddFolderModal({ closeModal }) {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    const sendData = async () => {
+    const addFolder = async () => {
       try {
         const data = { folder };
         await axios.post('/api/v1/folders/save', data);
@@ -26,7 +26,7 @@ function AddFolderModal({ closeModal }) {
         closeModal();
       }
     };
-    sendData();
+    addFolder();
   };
 
   return (
@@ -102,21 +102,9 @@ function DeleteFolderModal({ closeModal, selectedFolder }) {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    const deleteData = async () => {
+    const deleteFolder = async () => {
       try {
-        const token = localStorage.getItem('cfin');
-
-        if (!token) {
-          toast.error('No token found');
-          return;
-        }
-
-        const user = JSON.parse(token);
-        const config = {
-          headers: { Authorization: `Bearer ${user.token}` },
-        };
-
-        await axios.delete(`/api/v1/folders/${selectedFolder.id}`, config);
+        await axios.delete(`/api/v1/folders/${selectedFolder.id}`);
         toast.success(`Folder ${selectedFolder.folderName} deleted`);
       } catch (error) {
         console.error('An error occurred:', error);
@@ -128,7 +116,7 @@ function DeleteFolderModal({ closeModal, selectedFolder }) {
         closeModal();
       }
     };
-    deleteData();
+    deleteFolder();
   };
 
   return (
