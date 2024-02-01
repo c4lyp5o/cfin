@@ -158,7 +158,7 @@ const streamFile = async (request, reply) => {
     const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
 
     const chunksize = end - start + 1;
-    const file = fs.createReadStream(filePath, { start, end });
+    const fileStream = fs.createReadStream(filePath, { start, end });
     const head = {
       'Content-Range': `bytes ${start}-${end}/${fileSize}`,
       'Accept-Ranges': 'bytes',
@@ -168,7 +168,7 @@ const streamFile = async (request, reply) => {
 
     reply.code(206);
     reply.headers(head);
-    return reply.send(file);
+    return reply.send(fileStream);
   } else {
     const head = {
       'Content-Length': fileSize,
