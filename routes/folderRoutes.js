@@ -1,4 +1,5 @@
 import {
+  getAllDrives,
   getAllFolders,
   getAllSharedFolders,
   saveSharedFolder,
@@ -15,6 +16,9 @@ export default function (fastify, opts, done) {
       done();
     }
   });
+
+  // Get all drives. this is for adding drives
+  fastify.get('/folders/drives', getAllDrives);
 
   // Get all folders. this is for adding folders
   fastify.get('/folders/read', getAllFolders);
