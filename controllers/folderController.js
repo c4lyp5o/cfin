@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-const { exec } = require('child_process');
+import { exec } from 'child_process';
 import prisma from '../database/client.js';
 
 const getAllDrives = async (request, reply) => {
