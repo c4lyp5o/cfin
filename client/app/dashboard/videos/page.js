@@ -40,9 +40,9 @@ const Videos = () => {
       <h1 className='text-2xl mb-4'>Shared Videos</h1>
       <div className='grid grid-cols-3 gap-4'>
         {files.length > 0 ? (
-          files.map((file) => (
+          files.map((file, index) => (
             <button
-              key={file.id}
+              key={index}
               className='rounded-md border border-black border-1 p-2'
             >
               <h2 className='text-lg mb-2'>{file.fileName}</h2>
