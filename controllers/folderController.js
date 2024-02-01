@@ -1,7 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import jwt from 'jsonwebtoken';
-
 import prisma from '../database/client.js';
 
 const getAllFolders = async (request, reply) => {
@@ -17,35 +15,37 @@ const getAllFolders = async (request, reply) => {
     });
     reply.send(allDir);
   } catch (err) {
+    console.log(err);
     reply.code(500).send({ error: 'Failed to read directory' });
   }
 };
 
 const getAllSharedFolders = async (request, reply) => {
-  const folders = await prisma.SharedFolders.findMany({
-    include: { files: true },
-  });
+  try {
+    const folders = await prisma.sharedFolders.findMany({
+      include: { files: true },
+    });
 
-  const folderWithSizeAsString = folders.map((f) => ({
-    ...f,
-    folderSize: f.folderSize.toString(),
-    files: f.files.map((file) => ({
-      ...file,
-      fileSize: file.fileSize.toString(),
-    })),
-  }));
+    const folderWithSizeAsString = folders.map((f) => ({
+      ...f,
+      folderSize: f.folderSize.toString(),
+      files: f.files.map((file) => ({
+        ...file,
+        fileSize: file.fileSize.toString(),
+      })),
+    }));
 
-  reply.send(folderWithSizeAsString);
+    reply.send(folderWithSizeAsString);
+  } catch (err) {
+    console.log(err);
+    reply.code(500).send({ error: err.message });
+  }
 };
 
 const saveSharedFolder = async (request, reply) => {
-  const token = request.headers.authorization.split(' ')[1];
-
-  const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
+  const { id } = request.session.user;
   const folderPath = request.body.folder.replace(/^\//, '');
-
-  const existingFolder = await prisma.SharedFolders.findUnique({
+  const existingFolder = await prisma.sharedFolders.findUnique({
     where: { folderPath: folderPath },
   });
 
@@ -96,7 +96,7 @@ const saveSharedFolder = async (request, reply) => {
       imageFiles.length === 0 &&
       musicFiles.length === 0
     ) {
-      reply.code(400).send({ error: 'No files found' });
+      reply.code(500).send({ error: 'No files found' });
       return;
     }
 
@@ -112,9 +112,9 @@ const saveSharedFolder = async (request, reply) => {
         .reduce((acc, size) => acc + size, BigInt(0))
     ).toString();
 
-    const folder = await prisma.SharedFolders.create({
+    const folder = await prisma.sharedFolders.create({
       data: {
-        userId: decoded.id,
+        userId: id,
         folderPath: folderPath,
         folderName: path.basename(folderPath),
         folderSize: folderSize,
@@ -148,12 +148,13 @@ const saveSharedFolder = async (request, reply) => {
 
     reply.send(folder);
   } catch (err) {
+    console.log(err);
     reply.code(500).send({ error: err.message });
   }
 };
 
 const updateSharedFolder = async (request, reply) => {
-  const folder = await prisma.SharedFolders.update({
+  const folder = await prisma.sharedFolders.update({
     where: { id: Number(request.params.id) },
     data: request.body,
   });
@@ -162,12 +163,12 @@ const updateSharedFolder = async (request, reply) => {
 
 const deleteSharedFolder = async (request, reply) => {
   // delete all files in SharedFiles table
-  await prisma.SharedFiles.deleteMany({
+  await prisma.sharedFiles.deleteMany({
     where: { folderId: Number(request.params.id) },
   });
 
   // delete folder in SharedFolders table
-  const folder = await prisma.SharedFolders.delete({
+  const folder = await prisma.sharedFolders.delete({
     where: { id: Number(request.params.id) },
   });
 
