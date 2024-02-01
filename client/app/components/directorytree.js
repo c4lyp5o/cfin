@@ -2,15 +2,31 @@ import React, { useState, useEffect } from 'react';
 import { FolderIcon } from '@heroicons/react/24/outline';
 
 const DirectoryTree = ({ setFolder }) => {
+  const [drive, setDrive] = useState(null);
   const [path, setPath] = useState('/');
   const [contents, setContents] = useState([]);
+
+  const handleItemClick = (item) => {
+    if (drive) {
+      setPath(`${path}/${item.name}`);
+      setFolder(`${drive}${path}/${item.name}`);
+    } else {
+      setDrive(item.name);
+      setPath('/');
+    }
+  };
 
   useEffect(() => {
     const readDir = async () => {
       try {
-        const response = await fetch(
-          `/api/v1/folders/read?path=${encodeURIComponent(path)}`
-        );
+        let response;
+        if (drive) {
+          response = await fetch(
+            `/api/v1/folders/read?path=${encodeURIComponent(drive + path)}`
+          );
+        } else {
+          response = await fetch(`/api/v1/folders/drives`);
+        }
 
         if (!response.ok) {
           throw new Error('Error reading directory');
@@ -23,7 +39,7 @@ const DirectoryTree = ({ setFolder }) => {
       }
     };
     readDir();
-  }, [path]);
+  }, [drive, path]);
 
   return (
     <div className='flex flex-wrap'>
@@ -37,7 +53,7 @@ const DirectoryTree = ({ setFolder }) => {
       {path !== '/' && (
         <div
           className='cursor-pointer text-black hover:text-blue-500 mr-4'
-          onClick={() => setPath(path.split('/').slice(0, -1).join('/'))}
+          onClick={() => handleItemClick(item)}
           aria-label='Back'
         >
           ..
