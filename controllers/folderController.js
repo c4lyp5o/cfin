@@ -1,6 +1,24 @@
 import fs from 'fs';
 import path from 'path';
+const { exec } = require('child_process');
 import prisma from '../database/client.js';
+
+const getAllDrives = async (request, reply) => {
+  exec('wmic logicaldisk get name', (err, stdout) => {
+    if (err) {
+      console.log(err);
+      reply.code(500).send({ error: 'Failed to get drives' });
+      return;
+    }
+
+    const drives = stdout
+      .split('\n')
+      .filter((value) => value.trim() !== '')
+      .slice(1); // Remove the first line, which is the column name
+
+    reply.send(drives);
+  });
+};
 
 const getAllFolders = async (request, reply) => {
   const directoryPath = request.query.path || '/';
@@ -176,6 +194,7 @@ const deleteSharedFolder = async (request, reply) => {
 };
 
 export {
+  getAllDrives,
   getAllFolders,
   getAllSharedFolders,
   saveSharedFolder,
