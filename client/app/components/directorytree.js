@@ -8,16 +8,8 @@ const DirectoryTree = ({ setFolder }) => {
   useEffect(() => {
     const readDir = async () => {
       try {
-        const token = localStorage.getItem('cfin');
-        const user = JSON.parse(token);
-
         const response = await fetch(
-          `/api/v1/folders/read?path=${encodeURIComponent(path)}`,
-          {
-            headers: {
-              Authorization: `Bearer ${user.token}`,
-            },
-          }
+          `/api/v1/folders/read?path=${encodeURIComponent(path)}`
         );
 
         if (!response.ok) {
