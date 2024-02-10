@@ -1,23 +1,88 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
-import { exec } from 'child_process';
 import prisma from '../database/client.js';
 
+const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif'];
+const musicExtensions = ['.mp3', '.wav', '.aac'];
+const videoExtensions = ['.mp4', '.avi', '.mov', '.flv'];
+
+const getFileDetails = (filePath) => ({
+  fileName: path.basename(filePath),
+  filePath: filePath,
+  fileSize: fs.statSync(filePath).size.toString(),
+  fileType: getFileType(filePath),
+  fileExtension: path.extname(filePath),
+});
+
+const getFileType = (filePath) => {
+  const ext = path.extname(filePath);
+  if (imageExtensions.includes(ext)) return 'image';
+  if (musicExtensions.includes(ext)) return 'music';
+  if (videoExtensions.includes(ext)) return 'video';
+  return 'other';
+};
+
+const readDirRecursive = async (folderPath) => {
+  const entries = await fs.promises.readdir(folderPath, {
+    withFileTypes: true,
+  });
+
+  const files = [];
+  for (const entry of entries) {
+    const entryPath = path.join(folderPath, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await readDirRecursive(entryPath)));
+    } else if (entry.isFile()) {
+      files.push(getFileDetails(entryPath));
+    }
+  }
+
+  return files;
+};
+
 const getAllDrives = async (request, reply) => {
-  exec('wmic logicaldisk get name', (err, stdout) => {
-    if (err) {
-      console.log(err);
-      reply.code(500).send({ error: 'Failed to get drives' });
-      return;
+  if (os.platform() === 'win32') {
+    exec('wmic logicaldisk get name', (err, stdout) => {
+      if (err) {
+        console.log(err);
+        reply.code(500).send({ error: 'Failed to get drives' });
+        return;
+      }
+
+      const drives = stdout
+        .split('\n')
+        .filter((value) => value.trim() !== '')
+        .slice(1); // Remove the first line, which is the column name
+
+      reply.send(drives);
+    });
+  } else {
+    const paths = ['/mnt', '/media'];
+    if (os.platform() === 'darwin') {
+      paths.push('/Volumes');
     }
 
-    const drives = stdout
-      .split('\n')
-      .filter((value) => value.trim() !== '')
-      .slice(1); // Remove the first line, which is the column name
+    const drives = paths.map((path) => {
+      try {
+        return fs
+          .readdirSync(path)
+          .map((name) => ({ name: `${path}/${name}` }));
+      } catch (err) {
+        console.log(err);
+        return [];
+      }
+    });
 
-    reply.send(drives);
-  });
+    let realDrives = [];
+    drives.forEach((drive) => {
+      realDrives = realDrives.concat(drive);
+    });
+
+    realDrives = [{ name: '/' }, ...realDrives];
+
+    reply.send(realDrives);
+  }
 };
 
 const getAllFolders = async (request, reply) => {
@@ -29,6 +94,9 @@ const getAllFolders = async (request, reply) => {
       return {
         name: file,
         path: path.join(directoryPath, file),
+        type: fs.statSync(path.join(directoryPath, file)).isDirectory()
+          ? 'folder'
+          : 'file',
       };
     });
     reply.send(allDir);
@@ -62,9 +130,9 @@ const getAllSharedFolders = async (request, reply) => {
 
 const saveSharedFolder = async (request, reply) => {
   const { id } = request.session.user;
-  const folderPath = request.body.folder.replace(/^\//, '');
+  const { folder: selectedFolder } = request.body;
   const existingFolder = await prisma.sharedFolders.findUnique({
-    where: { folderPath: folderPath },
+    where: { folderPath: selectedFolder },
   });
 
   if (existingFolder) {
@@ -73,40 +141,27 @@ const saveSharedFolder = async (request, reply) => {
   }
 
   try {
-    const files = await fs.promises.readdir(folderPath);
-
-    const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif'];
-    const musicExtensions = ['.mp3', '.wav', '.aac'];
-    const videoExtensions = ['.mp4', '.avi', '.mov', '.flv'];
+    const files = await readDirRecursive(selectedFolder);
 
     const videoFiles = files
-      .filter((file) => videoExtensions.includes(path.extname(file)))
+      .filter((file) => videoExtensions.includes(file.fileExtension))
       .map((file) => ({
-        fileName: file,
-        filePath: path.join(folderPath, file),
-        fileSize: fs.statSync(path.join(folderPath, file)).size.toString(),
-        fileType: 'video',
-        fileExtension: path.extname(file),
+        ...file,
+        fileSize: file.fileSize.toString(),
       }));
 
     const imageFiles = files
-      .filter((file) => imageExtensions.includes(path.extname(file)))
+      .filter((file) => imageExtensions.includes(file.fileExtension))
       .map((file) => ({
-        fileName: file,
-        filePath: path.join(folderPath, file),
-        fileSize: fs.statSync(path.join(folderPath, file)).size.toString(),
-        fileType: 'image',
-        fileExtension: path.extname(file),
+        ...file,
+        fileSize: file.fileSize.toString(),
       }));
 
     const musicFiles = files
-      .filter((file) => musicExtensions.includes(path.extname(file)))
+      .filter((file) => musicExtensions.includes(file.fileExtension))
       .map((file) => ({
-        fileName: file,
-        filePath: path.join(folderPath, file),
-        fileSize: fs.statSync(path.join(folderPath, file)).size.toString(),
-        fileType: 'music',
-        fileExtension: path.extname(file),
+        ...file,
+        fileSize: file.fileSize.toString(),
       }));
 
     if (
@@ -130,41 +185,19 @@ const saveSharedFolder = async (request, reply) => {
         .reduce((acc, size) => acc + size, BigInt(0))
     ).toString();
 
-    const folder = await prisma.sharedFolders.create({
+    const processedFolder = await prisma.sharedFolders.create({
       data: {
         userId: id,
-        folderPath: folderPath,
-        folderName: path.basename(folderPath),
+        folderPath: selectedFolder,
+        folderName: path.basename(selectedFolder),
         folderSize: folderSize,
         files: {
-          create: [
-            ...videoFiles.map((file) => ({
-              fileName: file.fileName,
-              filePath: file.filePath,
-              fileSize: file.fileSize.toString(),
-              fileType: file.fileType,
-              fileExtension: file.fileExtension,
-            })),
-            ...imageFiles.map((file) => ({
-              fileName: file.fileName,
-              filePath: file.filePath,
-              fileSize: file.fileSize.toString(),
-              fileType: file.fileType,
-              fileExtension: file.fileExtension,
-            })),
-            ...musicFiles.map((file) => ({
-              fileName: file.fileName,
-              filePath: file.filePath,
-              fileSize: file.fileSize.toString(),
-              fileType: file.fileType,
-              fileExtension: file.fileExtension,
-            })),
-          ],
+          create: [...videoFiles, ...imageFiles, ...musicFiles],
         },
       },
     });
 
-    reply.send(folder);
+    reply.send(processedFolder);
   } catch (err) {
     console.log(err);
     reply.code(500).send({ error: err.message });
