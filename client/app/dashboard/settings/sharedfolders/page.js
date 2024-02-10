@@ -66,7 +66,7 @@ function AddFolderModal({ closeModal }) {
                         Choose Folder
                       </Dialog.Title>
                       <div className='mt-2'>
-                        <DirectoryTree setFolder={setFolder} />
+                        <DirectoryTree folder={folder} setFolder={setFolder} />
                       </div>
                     </div>
                   </div>
