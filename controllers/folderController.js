@@ -1,11 +1,31 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { exec as execCb } from 'child_process';
+import { promisify } from 'util';
+
 import prisma from '../database/client.js';
+
+const exec = promisify(execCb);
 
 const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif'];
 const musicExtensions = ['.mp3', '.wav', '.aac'];
 const videoExtensions = ['.mp4', '.avi', '.mov', '.flv'];
+
+const purgeSystemDirs = async (dirPath, filePath) => {
+  try {
+    const { stdout } = await exec(`attrib "${filePath}" /d`);
+    const newDirPath = dirPath.replace(/\//g, '\\');
+    const realAttribute = stdout
+      .split(newDirPath)
+      .filter((value) => value !== '')[0]
+      .trim();
+    return realAttribute.includes('S') || realAttribute.includes('H');
+  } catch (err) {
+    console.log(err);
+    return false;
+  }
+};
 
 const getFileDetails = (filePath) => ({
   fileName: path.basename(filePath),
@@ -41,25 +61,30 @@ const readDirRecursive = async (folderPath) => {
   return files;
 };
 
+const getWindowsDrives = async () => {
+  const { stdout } = await exec('wmic logicaldisk get name');
+  const realDrives = stdout
+    .split('\n')
+    .filter((value) => value.trim() !== '')
+    .slice(1)
+    .map((drive) => ({ name: drive.trim(), type: 'drive' }));
+  return realDrives;
+};
+
 const getAllDrives = async (request, reply) => {
-  if (os.platform() === 'win32') {
-    exec('wmic logicaldisk get name', (err, stdout) => {
-      if (err) {
-        console.log(err);
-        reply.code(500).send({ error: 'Failed to get drives' });
-        return;
-      }
+  const platform = os.platform();
 
-      const drives = stdout
-        .split('\n')
-        .filter((value) => value.trim() !== '')
-        .slice(1); // Remove the first line, which is the column name
-
-      reply.send(drives);
-    });
+  if (platform === 'win32') {
+    try {
+      const drives = await getWindowsDrives();
+      reply.send({ drives: drives, platform: platform });
+    } catch (err) {
+      console.log(err);
+      reply.code(500).send({ error: 'Failed to read drives' });
+    }
   } else {
     const paths = ['/mnt', '/media'];
-    if (os.platform() === 'darwin') {
+    if (platform === 'darwin') {
       paths.push('/Volumes');
     }
 
@@ -67,7 +92,7 @@ const getAllDrives = async (request, reply) => {
       try {
         return fs
           .readdirSync(path)
-          .map((name) => ({ name: `${path}/${name}` }));
+          .map((name) => ({ name: `${path}/${name}`, type: 'drive' }));
       } catch (err) {
         console.log(err);
         return [];
@@ -79,7 +104,7 @@ const getAllDrives = async (request, reply) => {
       realDrives = realDrives.concat(drive);
     });
 
-    realDrives = [{ name: '/' }, ...realDrives];
+    realDrives = [{ name: '/', type: 'drive' }, ...realDrives];
 
     reply.send(realDrives);
   }
@@ -89,16 +114,27 @@ const getAllFolders = async (request, reply) => {
   const directoryPath = request.query.path || '/';
 
   try {
-    const files = await fs.promises.readdir(directoryPath);
-    const allDir = files.map((file) => {
-      return {
-        name: file,
-        path: path.join(directoryPath, file),
-        type: fs.statSync(path.join(directoryPath, file)).isDirectory()
-          ? 'folder'
-          : 'file',
-      };
-    });
+    const platform = os.platform();
+
+    let files = await fs.promises.readdir(directoryPath);
+    files = await Promise.all(
+      files.map(async (file) => {
+        const filePath = path.join(directoryPath, file);
+        if (platform === 'win32') {
+          if (await purgeSystemDirs(directoryPath, filePath)) {
+            return null;
+          }
+        }
+        if (!fs.statSync(filePath).isDirectory()) {
+          return null;
+        }
+        return {
+          name: file,
+          path: filePath,
+        };
+      })
+    );
+    const allDir = files.filter((file) => file !== null);
     reply.send(allDir);
   } catch (err) {
     console.log(err);
