@@ -1,6 +1,36 @@
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useReducer, Suspense } from 'react';
 import { FolderIcon, ComputerDesktopIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-toastify';
+
+const initialState = {
+  drive: '',
+  path: '/',
+  platform: '',
+  allDrives: [],
+  contents: [],
+  prevContents: [],
+};
+
+const reducer = (state, action) => {
+  switch (action.type) {
+    case 'SET_DRIVE':
+      return { ...state, drive: action.payload };
+    case 'SET_PATH':
+      return { ...state, path: action.payload };
+    case 'SET_PLATFORM':
+      return { ...state, platform: action.payload };
+    case 'SET_ALL_DRIVES':
+      return { ...state, allDrives: action.payload };
+    case 'SET_CONTENTS':
+      return {
+        ...state,
+        contents: action.payload,
+        prevContents: state.contents,
+      };
+    default:
+      throw new Error();
+  }
+};
 
 const Structure = ({
   drive,
@@ -41,118 +71,64 @@ const Structure = ({
 };
 
 const DirectoryTree = ({ folder, setFolder }) => {
-  const [allDrives, setAllDrives] = useState([]);
-  const [drive, setDrive] = useState('');
-  const [platform, setPlatform] = useState('');
-  const [path, setPath] = useState('/');
-  const [contents, setContents] = useState([]);
-  const [error, setError] = useState(null);
+  const [state, dispatch] = useReducer(reducer, initialState);
 
   const joinPath = (...args) => args.join('/').replace(/\/+/g, '/');
 
   const handleItemClick = (item) => {
-    if (drive) {
-      const newPath = joinPath(path, item.name);
-      setPath(newPath);
-      setFolder(joinPath(drive, newPath));
-      console.table({ drive, path, newPath });
-    } else {
-      setDrive(item.name);
-      setPath('/');
-      setFolder(item.name);
-      console.table({ drive: item.name, path: '/', folder: item.name });
-    }
+    const newPath = state.drive ? `${state.path}/${item.name}` : '/';
+    const newDrive = state.drive || item.name;
+
+    dispatch({ type: 'SET_DRIVE', payload: newDrive });
+    dispatch({ type: 'SET_PATH', payload: newPath });
+    setFolder(joinPath(newDrive, newPath));
   };
 
   const handleGoBackDirectory = () => {
-    const driveNames = allDrives.map((drive) => drive.name);
-    let newDrive = drive;
-    let newPath = path;
-    let newFolder = folder;
-
-    if (driveNames.includes(folder)) {
-      newDrive = null;
-      newPath = null;
-      newFolder = null;
+    if (state.path === '/') {
+      dispatch({ type: 'SET_DRIVE', payload: '' });
+      dispatch({ type: 'SET_PATH', payload: '/' });
+      setFolder('');
     } else {
-      newPath = path.split('/').slice(0, -1).join('/');
-      console.log(newPath);
-      if (drive === '/' && newPath !== '') {
-        console.log('if');
-        newFolder = newPath;
-      } else {
-        console.log('else');
-        newFolder = `${drive}${newPath}`;
-      }
+      const newPath = state.path.split('/').slice(0, -1).join('/');
+      dispatch({ type: 'SET_PATH', payload: newPath });
+      setFolder(`${state.drive}${newPath}`);
     }
-
-    setDrive(newDrive);
-    setPath(newPath);
-    setFolder(newFolder);
-    console.table({ drive: newDrive, path: newPath, folder: newFolder });
   };
 
   useEffect(() => {
     const readDir = async () => {
       try {
-        let response;
+        const url = state.drive
+          ? `/api/v1/folders/read?path=${encodeURIComponent(
+              `${state.drive}${state.path}`
+            )}`
+          : `/api/v1/folders/drives`;
 
-        if (drive) {
-          switch (platform) {
-            case 'win32':
-              const realPath = path === '' ? '/' : path;
-              response = await fetch(
-                `/api/v1/folders/read?path=${encodeURIComponent(
-                  drive + realPath
-                )}`
-              );
-              break;
-            case 'linux':
-            case 'darwin':
-              response = await fetch(
-                `/api/v1/folders/read?path=${encodeURIComponent(
-                  `${drive}${path}`
-                )}`
-              );
-              break;
-            default:
-              throw new Error('Unsupported platform');
-          }
-        } else {
-          response = await fetch(`/api/v1/folders/drives`);
-        }
+        const response = await fetch(url);
 
         if (!response.ok) {
-          setError(response.statusText);
-          throw new Error(response.statusText);
+          dispatch({ type: 'SET_DRIVE', payload: '' });
+          dispatch({ type: 'SET_CONTENTS', payload: state.prevContents });
+          throw new Error();
         }
 
         const data = await response.json();
-        console.log(data);
-        if (!drive) {
-          const { drives, platform } = data;
-          setAllDrives(drives);
-          setPlatform(platform);
-          setContents(drives);
+
+        if (state.drive) {
+          dispatch({ type: 'SET_CONTENTS', payload: data });
         } else {
-          setContents(data);
+          dispatch({ type: 'SET_ALL_DRIVES', payload: data.drives });
+          dispatch({ type: 'SET_PLATFORM', payload: data.platform });
+          dispatch({ type: 'SET_CONTENTS', payload: data.drives });
         }
       } catch (error) {
-        setError(error.message);
+        toast.error('Folder is not accessible');
       }
     };
 
-    try {
-      readDir();
-    } catch (error) {
-      setError(error.message);
-      toast.error('Folder is not accessible');
-    }
-  }, [drive, path, platform, setAllDrives, setContents]);
-
-  if (error) {
-    return <div>Error: {error}</div>;
-  }
+    readDir();
+  }, [state.drive, state.path, state.platform]);
 
   return (
     <div className='flex flex-wrap'>
@@ -165,8 +141,8 @@ const DirectoryTree = ({ folder, setFolder }) => {
       </button>
       <Suspense fallback={<div>Loading...</div>}>
         <Structure
-          drive={drive}
-          contents={contents}
+          drive={state.drive}
+          contents={state.contents}
           handleItemClick={handleItemClick}
           handleGoBackDirectory={handleGoBackDirectory}
         />
