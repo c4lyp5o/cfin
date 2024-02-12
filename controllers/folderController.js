@@ -61,26 +61,21 @@ const readDirRecursive = async (folderPath) => {
   return files;
 };
 
-const getWindowsDrives = async () => {
-  const { stdout } = await exec('wmic logicaldisk get name');
-  const realDrives = stdout
-    .split('\n')
-    .filter((value) => value.trim() !== '')
-    .slice(1)
-    .map((drive) => ({ name: drive.trim(), type: 'drive' }));
-  return realDrives;
-};
-
 const getAllDrives = async (request, reply) => {
   const platform = os.platform();
 
   if (platform === 'win32') {
     try {
-      const drives = await getWindowsDrives();
+      const { stdout } = await exec('wmic logicaldisk get name');
+      const drives = stdout
+        .split('\n')
+        .filter((value) => value.trim() !== '')
+        .slice(1)
+        .map((drive) => ({ name: drive.trim(), type: 'drive' }));
       reply.send({ drives: drives, platform: platform });
     } catch (err) {
       console.log(err);
-      reply.code(500).send({ error: 'Failed to read drives' });
+      reply.code(500).send({ message: 'Failed to read drives' });
     }
   } else {
     const paths = ['/mnt', '/media'];
@@ -95,7 +90,7 @@ const getAllDrives = async (request, reply) => {
           .map((name) => ({ name: `${path}/${name}`, type: 'drive' }));
       } catch (err) {
         console.log(err);
-        return [];
+        reply.code(500).send({ message: 'Failed to read drives' });
       }
     });
 
@@ -106,7 +101,7 @@ const getAllDrives = async (request, reply) => {
 
     realDrives = [{ name: '/', type: 'drive' }, ...realDrives];
 
-    reply.send(realDrives);
+    reply.send({ drives: realDrives, platform: platform });
   }
 };
 
@@ -138,7 +133,7 @@ const getAllFolders = async (request, reply) => {
     reply.send(allDir);
   } catch (err) {
     console.log(err);
-    reply.code(500).send({ error: 'Failed to read directory' });
+    reply.code(500).send({ message: 'Failed to read directory' });
   }
 };
 
@@ -160,7 +155,7 @@ const getAllSharedFolders = async (request, reply) => {
     reply.send(folderWithSizeAsString);
   } catch (err) {
     console.log(err);
-    reply.code(500).send({ error: err.message });
+    reply.code(500).send({ message: err.message });
   }
 };
 
@@ -172,7 +167,7 @@ const saveSharedFolder = async (request, reply) => {
   });
 
   if (existingFolder) {
-    reply.code(400).send({ error: 'Folder already exists' });
+    reply.code(400).send({ message: 'Folder already exists' });
     return;
   }
 
@@ -205,7 +200,7 @@ const saveSharedFolder = async (request, reply) => {
       imageFiles.length === 0 &&
       musicFiles.length === 0
     ) {
-      reply.code(500).send({ error: 'No files found' });
+      reply.code(500).send({ message: 'No files found' });
       return;
     }
 
@@ -236,7 +231,7 @@ const saveSharedFolder = async (request, reply) => {
     reply.send(processedFolder);
   } catch (err) {
     console.log(err);
-    reply.code(500).send({ error: err.message });
+    reply.code(500).send({ message: err.message });
   }
 };
 
