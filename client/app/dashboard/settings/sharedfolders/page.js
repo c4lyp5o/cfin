@@ -14,6 +14,7 @@ function AddFolderModal({ closeModal }) {
 
   const handleSubmit = (event) => {
     event.preventDefault();
+
     const addFolder = async () => {
       try {
         const data = { folder };
@@ -26,6 +27,7 @@ function AddFolderModal({ closeModal }) {
         closeModal();
       }
     };
+
     addFolder();
   };
 
